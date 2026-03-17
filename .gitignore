@@ -1,0 +1,16 @@
+node_modules/
+dist/
+src-tauri/target/
+gen_icon.py
+
+.DS_Store
+Thumbs.db
+
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+*.log
+*.tsbuildinfo
