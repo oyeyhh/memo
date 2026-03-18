@@ -131,6 +131,11 @@ impl Database {
         Ok(())
     }
 
+    pub fn get_current_time(&self) -> Result<String, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row("SELECT datetime('now', 'localtime')", [], |row| row.get(0))
+    }
+
     pub fn get_all_notes(&self) -> Result<Vec<Note>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

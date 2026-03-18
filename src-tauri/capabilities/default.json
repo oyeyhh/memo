@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["main", "editor"],
+  "windows": ["main", "editor*", "settings"],
   "permissions": [
     "core:default",
     "core:window:allow-create",
@@ -11,8 +11,14 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:webview:allow-create-webview-window",
+    "core:event:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

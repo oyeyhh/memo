@@ -5,42 +5,14 @@ const api = useApi();
 
 const groups = ref<Group[]>([]);
 const notes = ref<Note[]>([]);
-const searchQuery = ref("");
 
 export function useStore() {
   const ungroupedNotes = computed(() =>
     notes.value.filter((n) => n.group_id === null)
   );
 
-  const filteredUngroupedNotes = computed(() => {
-    const q = searchQuery.value.toLowerCase().trim();
-    if (!q) return ungroupedNotes.value;
-    return ungroupedNotes.value.filter((n) =>
-      n.name.toLowerCase().includes(q)
-    );
-  });
-
-  const filteredGroups = computed(() => {
-    const q = searchQuery.value.toLowerCase().trim();
-    if (!q) return groups.value;
-    return groups.value.filter((g) => {
-      const groupMatch = g.name.toLowerCase().includes(q);
-      const hasMatchingNote = notes.value.some(
-        (n) => n.group_id === g.id && n.name.toLowerCase().includes(q)
-      );
-      return groupMatch || hasMatchingNote;
-    });
-  });
-
   function getNotesForGroup(groupId: number) {
-    const q = searchQuery.value.toLowerCase().trim();
-    const groupNotes = notes.value.filter((n) => n.group_id === groupId);
-    if (!q) return groupNotes;
-    const groupMatch = groups.value.find((g) => g.id === groupId);
-    if (groupMatch && groupMatch.name.toLowerCase().includes(q)) {
-      return groupNotes;
-    }
-    return groupNotes.filter((n) => n.name.toLowerCase().includes(q));
+    return notes.value.filter((n) => n.group_id === groupId);
   }
 
   async function loadData() {
@@ -87,9 +59,7 @@ export function useStore() {
   return {
     groups,
     notes,
-    searchQuery,
-    filteredUngroupedNotes,
-    filteredGroups,
+    ungroupedNotes,
     getNotesForGroup,
     loadData,
     addNote,

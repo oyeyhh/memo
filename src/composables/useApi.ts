@@ -31,5 +31,9 @@ export function useApi() {
     getAllNotes: () => invoke<Note[]>("get_all_notes"),
 
     copyToClipboard: (content: string) => invoke<void>("copy_to_clipboard", { content }),
+
+    exportData: () => invoke<string>("export_data"),
+    saveToFile: (path: string, content: string) => invoke<void>("save_to_file", { path, content }),
+    getAppVersion: () => invoke<string>("get_app_version"),
   };
 }

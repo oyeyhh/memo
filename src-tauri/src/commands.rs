@@ -1,5 +1,13 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 use crate::db::{Database, Group, Note};
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct ExportData {
+    pub groups: Vec<Group>,
+    pub notes: Vec<Note>,
+    pub exported_at: String,
+}
 
 #[tauri::command]
 pub fn create_group(db: State<'_, Database>, name: String) -> Result<Group, String> {
@@ -46,4 +54,31 @@ pub fn copy_to_clipboard(content: String) -> Result<(), String> {
     use arboard::Clipboard;
     let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn export_data(db: State<'_, Database>) -> Result<String, String> {
+    let groups = db.get_all_groups().map_err(|e| e.to_string())?;
+    let notes = db.get_all_notes().map_err(|e| e.to_string())?;
+    let data = ExportData {
+        groups,
+        notes,
+        exported_at: db.get_current_time().unwrap_or_default(),
+    };
+    serde_json::to_string_pretty(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_to_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
 }

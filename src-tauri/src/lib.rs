@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{
-    AppHandle, Manager,
-    menu::{MenuBuilder, MenuItemBuilder},
+    AppHandle, Emitter, Manager,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     WebviewUrl, WebviewWindowBuilder,
 };
@@ -30,41 +30,64 @@ fn toggle_panel(app: &AppHandle) {
             let _ = window.set_focus();
         }
     } else {
-        LAST_SHOW_TIME.store(now_millis(), Ordering::SeqCst);
-        let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-            .title("Simple Note")
-            .inner_size(360.0, 500.0)
-            .resizable(false)
-            .decorations(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .visible(true)
-            .focused(true)
-            .build();
+        create_main_window(app);
+    }
+}
 
-        if let Ok(win) = window {
-            // Position below tray icon
-            let _ = position_window_near_tray(app, &win);
+fn create_main_window(app: &AppHandle) {
+    LAST_SHOW_TIME.store(now_millis(), Ordering::SeqCst);
+    let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .title("Simple Note")
+        .inner_size(360.0, 500.0)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .background_color(tauri::window::Color(0, 0, 0, 0))
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(true)
+        .focused(true)
+        .build();
 
-            // Auto-hide on blur
-            let win_clone = win.clone();
-            win.on_window_event(move |event| {
-                if let tauri::WindowEvent::Focused(false) = event {
-                    // Skip hide if window was just shown (within 300ms)
-                    if now_millis() - LAST_SHOW_TIME.load(Ordering::SeqCst) < 300 {
+    if let Ok(win) = window {
+        let _ = position_window_near_tray(app, &win);
+
+        let win_clone = win.clone();
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Focused(false) = event {
+                if now_millis() - LAST_SHOW_TIME.load(Ordering::SeqCst) < 300 {
+                    return;
+                }
+                for (label, win) in win_clone.app_handle().webview_windows() {
+                    if (label.starts_with("editor") || label.starts_with("settings"))
+                        && win.is_visible().unwrap_or(false)
+                    {
                         return;
                     }
-                    // Check if any editor window exists
-                    for (label, win) in win_clone.app_handle().webview_windows() {
-                        if label.starts_with("editor") && win.is_visible().unwrap_or(false) {
-                            return;
-                        }
-                    }
-                    let _ = win_clone.hide();
                 }
-            });
-        }
+                let _ = win_clone.hide();
+            }
+        });
     }
+}
+
+fn open_new_note_window(app: &AppHandle) {
+    // Show main panel first
+    toggle_panel(app);
+
+    // Open editor in create mode
+    let label = format!("editor-new-{}", now_millis());
+    let _ = WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App("editor.html?type=note&mode=create".into()),
+    )
+    .title("新建笔记")
+    .inner_size(420.0, 380.0)
+    .resizable(false)
+    .center()
+    .always_on_top(true)
+    .build();
 }
 
 fn position_window_near_tray(app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), Box<dyn std::error::Error>> {
@@ -103,6 +126,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -112,7 +140,6 @@ pub fn run() {
                 )?;
             }
 
-            // Hide from dock on macOS
             #[cfg(target_os = "macos")]
             {
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -126,11 +153,15 @@ pub fn run() {
                 .expect("Failed to initialize database");
             app.manage(database);
 
-            // Create tray menu
-            let quit = MenuItemBuilder::with_id("quit", "退出 Simple Note").build(app)?;
-            let menu = MenuBuilder::new(app).item(&quit).build()?;
+            // Build tray right-click menu
+            let menu = Menu::with_items(app, &[
+                &MenuItem::with_id(app, "new_note", "新建笔记", true, None::<&str>)?,
+                &MenuItem::with_id(app, "export_data", "导出数据", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?,
+            ])?;
 
-            // Create tray icon
+            // Create tray icon with menu
             let app_handle = app.handle().clone();
             let app_handle_menu = app.handle().clone();
             TrayIconBuilder::with_id("main-tray")
@@ -138,14 +169,30 @@ pub fn run() {
                 .icon_as_template(true)
                 .tooltip("Simple Note")
                 .menu(&menu)
-                .on_menu_event(move |_tray, event| {
-                    if event.id() == "quit" {
-                        app_handle_menu.exit(0);
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(move |_tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        toggle_panel(&app_handle);
                     }
                 })
-                .on_tray_icon_event(move |_tray, event| {
-                    if let tauri::tray::TrayIconEvent::Click { .. } = event {
-                        toggle_panel(&app_handle);
+                .on_menu_event(move |app, event| {
+                    match event.id.as_ref() {
+                        "new_note" => {
+                            open_new_note_window(&app_handle_menu);
+                        }
+                        "export_data" => {
+                            // Emit event to frontend to handle export
+                            let _ = app.emit("tray-export-data", ());
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
                     }
                 })
                 .build(app)?;
@@ -171,6 +218,10 @@ pub fn run() {
             commands::delete_note,
             commands::get_all_notes,
             commands::copy_to_clipboard,
+            commands::export_data,
+            commands::save_to_file,
+            commands::get_app_version,
+            commands::quit_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

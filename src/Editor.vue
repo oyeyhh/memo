@@ -8,23 +8,29 @@ const api = useApi();
 const params = new URLSearchParams(window.location.search);
 const editType = params.get("type") || "note";
 const editId = Number(params.get("id"));
+const mode = params.get("mode") || "edit";
+const isCreate = mode === "create";
 
 const name = ref("");
 const content = ref("");
 const groupId = ref<number | null>(null);
 const groups = ref<Group[]>([]);
 const confirmDelete = ref(false);
+const showNewGroupInput = ref(false);
+const newGroupName = ref("");
 
 onMounted(async () => {
   if (editType === "note") {
-    const notes = await api.getAllNotes();
-    const note = notes.find((n) => n.id === editId);
-    if (note) {
-      name.value = note.name;
-      content.value = note.content;
-      groupId.value = note.group_id;
-    }
     groups.value = await api.getAllGroups();
+    if (!isCreate) {
+      const notes = await api.getAllNotes();
+      const note = notes.find((n) => n.id === editId);
+      if (note) {
+        name.value = note.name;
+        content.value = note.content;
+        groupId.value = note.group_id;
+      }
+    }
   } else {
     const allGroups = await api.getAllGroups();
     groups.value = allGroups;
@@ -42,10 +48,21 @@ async function save() {
   if (editType === "note") {
     const trimmedContent = content.value.trim();
     if (!trimmedContent) return;
-    await api.updateNote(editId, trimmedName, trimmedContent, groupId.value);
+    if (isCreate) {
+      await api.createNote(trimmedName, trimmedContent, groupId.value);
+    } else {
+      await api.updateNote(editId, trimmedName, trimmedContent, groupId.value);
+    }
   } else {
     await api.updateGroup(editId, trimmedName);
   }
+
+  // Notify main window to reload data
+  try {
+    const event = new CustomEvent("note-data-changed");
+    window.dispatchEvent(event);
+  } catch (_) {}
+
   await getCurrentWindow().close();
 }
 
@@ -62,18 +79,53 @@ async function deleteItem() {
   await getCurrentWindow().close();
 }
 
+function onGroupChange(e: Event) {
+  const val = (e.target as HTMLSelectElement).value;
+  if (val === "__new__") {
+    showNewGroupInput.value = true;
+    (e.target as HTMLSelectElement).value = groupId.value?.toString() ?? "";
+  } else {
+    groupId.value = val ? Number(val) : null;
+  }
+}
+
+async function confirmNewGroup() {
+  const trimmed = newGroupName.value.trim();
+  if (trimmed) {
+    await api.createGroup(trimmed);
+    groups.value = await api.getAllGroups();
+    const newGroup = groups.value.find(g => g.name === trimmed);
+    if (newGroup) {
+      groupId.value = newGroup.id;
+    }
+  }
+  showNewGroupInput.value = false;
+  newGroupName.value = "";
+}
+
+function cancelNewGroup() {
+  showNewGroupInput.value = false;
+  newGroupName.value = "";
+}
+
 function handleKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
     e.preventDefault();
     save();
   }
 }
+
+const titleText = isCreate
+  ? "新建笔记"
+  : editType === "note"
+    ? "编辑笔记"
+    : "编辑分组";
 </script>
 
 <template>
   <div class="editor" @keydown="handleKeydown">
     <div class="editor-header">
-      <h2 class="editor-title">{{ editType === 'note' ? '编辑笔记' : '编辑分组' }}</h2>
+      <h2 class="editor-title">{{ titleText }}</h2>
     </div>
 
     <div class="editor-form">
@@ -98,17 +150,20 @@ function handleKeydown(e: KeyboardEvent) {
             rows="6"
           />
         </div>
-        <div class="field">
-          <label class="field-label">分组</label>
-          <select v-model="groupId" class="form-input form-input--select">
-            <option :value="null">无分组</option>
-            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-          </select>
-        </div>
       </template>
     </div>
 
     <div class="editor-footer">
+      <template v-if="editType === 'note'">
+        <div class="group-select-wrap">
+          <span class="group-dot" />
+          <select class="group-native-select" :value="groupId ?? ''" @change="onGroupChange">
+            <option value="">无分组</option>
+            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+            <option value="__new__">+ 新建分组</option>
+          </select>
+        </div>
+      </template>
       <button
         v-if="editType === 'group'"
         class="btn-danger-outline"
@@ -123,6 +178,28 @@ function handleKeydown(e: KeyboardEvent) {
         <span class="btn-hint">⌘↵</span>
       </button>
     </div>
+
+    <!-- New group dialog -->
+    <Transition name="confirm">
+      <div v-if="showNewGroupInput" class="confirm-overlay" @click.self="cancelNewGroup">
+        <div class="confirm-dialog">
+          <p class="new-group-title">新建分组</p>
+          <input
+            v-model="newGroupName"
+            type="text"
+            placeholder="输入分组名称"
+            class="new-group-input"
+            autofocus
+            @keydown.enter="confirmNewGroup"
+            @keydown.escape="cancelNewGroup"
+          />
+          <div class="confirm-actions">
+            <button class="btn-ghost-full" @click="cancelNewGroup">取消</button>
+            <button class="btn-primary-full" @click="confirmNewGroup">确定</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Delete confirm -->
     <Transition name="confirm">
@@ -291,8 +368,42 @@ body { margin: 0; }
   line-height: 1.5;
 }
 
-.form-input--select {
+.group-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  position: relative;
   cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.group-select-wrap:hover {
+  border-color: var(--color-border-strong);
+}
+
+.group-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.group-native-select {
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  outline: none;
+  cursor: pointer;
+  padding-right: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
 }
 
 .editor-footer {
@@ -442,6 +553,58 @@ body { margin: 0; }
 
 .btn-danger-full:hover {
   background: var(--color-danger-hover);
+}
+
+.btn-primary-full {
+  flex: 1;
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-accent);
+  color: #fff;
+  transition: background var(--transition-fast), transform 80ms ease;
+}
+
+.btn-primary-full:active {
+  transform: scale(0.97);
+}
+
+.btn-primary-full:hover {
+  background: var(--color-accent-hover);
+}
+
+.new-group-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 10px;
+}
+
+.new-group-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  font-family: var(--font-sans);
+  outline: none;
+  background: var(--color-bg-solid);
+  color: var(--color-text-primary);
+  margin-bottom: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.new-group-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.new-group-input:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 2.5px var(--color-accent-subtle);
 }
 
 .confirm-enter-active,
