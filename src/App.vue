@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from "vue";
+import { onMounted, onUnmounted, ref, computed, watch } from "vue";
 import { useStore } from "./composables/useStore";
 import { useApi } from "./composables/useApi";
 import type { Note, Group } from "./composables/useApi";
@@ -50,6 +50,10 @@ const groupsModel = computed(() => store.groups.value);
 const notesByGroup = computed(() =>
   Object.fromEntries(groupsModel.value.map((group) => [group.id, store.getNotesForGroup(group.id)]))
 );
+
+watch(totalCount, (newCount) => {
+  api.updateTrayTitle(newCount.toString()).catch(console.error);
+}, { immediate: true });
 
 onMounted(async () => {
   await store.loadData();

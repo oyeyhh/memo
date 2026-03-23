@@ -46,6 +46,7 @@ export function useApi() {
     readFile: (path: string) => invoke<string>("read_file", { path }),
     getAppVersion: () => invoke<string>("get_app_version"),
     setIgnoreBlur: (ignore: boolean) => invoke<void>("set_ignore_blur", { ignore }),
+    updateTrayTitle: (title: string) => invoke<void>("update_tray_title", { title }),
     quitApp: () => invoke<void>("quit_app"),
   };
 }

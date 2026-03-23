@@ -104,3 +104,11 @@ pub fn quit_app(app: AppHandle) {
 pub fn set_ignore_blur(ignore: bool) {
     crate::app_state::IGNORE_BLUR.store(ignore, std::sync::atomic::Ordering::SeqCst);
 }
+
+#[tauri::command]
+pub fn update_tray_title(app: AppHandle, title: String) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_title(Some(title));
+    }
+    Ok(())
+}

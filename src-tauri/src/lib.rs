@@ -39,6 +39,7 @@ pub fn run() {
             commands::get_app_version,
             commands::quit_app,
             commands::set_ignore_blur,
+            commands::update_tray_title,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
