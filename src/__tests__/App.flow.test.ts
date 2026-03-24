@@ -15,8 +15,8 @@ const groups = ref<Group[]>([
   { id: 1, name: "Work", sort_order: 0, created_at: "", updated_at: "" },
 ]);
 const notes = ref<Note[]>([
-  { id: 1, group_id: null, name: "Alpha", content: "A", sort_order: 0, created_at: "", updated_at: "" },
-  { id: 2, group_id: 1, name: "Beta", content: "B", sort_order: 1, created_at: "", updated_at: "" },
+  { id: 1, group_id: null, todo: 0, name: "Alpha", content: "A", sort_order: 0, created_at: "", updated_at: "" },
+  { id: 2, group_id: 1, todo: 0, name: "Beta", content: "B", sort_order: 1, created_at: "", updated_at: "" },
 ]);
 const store = {
   groups,
@@ -34,6 +34,7 @@ const store = {
       {
         id: notes.value.length + 10,
         group_id: groupId,
+        todo: 0,
         name,
         content,
         sort_order: notes.value.length,
@@ -149,8 +150,8 @@ describe("App flow", () => {
     vi.clearAllMocks();
     groups.value = [{ id: 1, name: "Work", sort_order: 0, created_at: "", updated_at: "" }];
     notes.value = [
-      { id: 1, group_id: null, name: "Alpha", content: "A", sort_order: 0, created_at: "", updated_at: "" },
-      { id: 2, group_id: 1, name: "Beta", content: "B", sort_order: 1, created_at: "", updated_at: "" },
+      { id: 1, group_id: null, todo: 0, name: "Alpha", content: "A", sort_order: 0, created_at: "", updated_at: "" },
+      { id: 2, group_id: 1, todo: 0, name: "Beta", content: "B", sort_order: 1, created_at: "", updated_at: "" },
     ];
   });
 

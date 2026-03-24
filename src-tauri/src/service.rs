@@ -23,7 +23,7 @@ pub fn export_data(db: &Database) -> Result<String, String> {
     let data = ExportData {
         version: EXPORT_VERSION,
         groups: db.get_all_groups().map_err(|e| e.to_string())?,
-        notes: db.get_all_notes().map_err(|e| e.to_string())?,
+        notes: db.get_all_notes(None).map_err(|e| e.to_string())?,
         exported_at: db.get_current_time().unwrap_or_default(),
     };
 
@@ -103,6 +103,7 @@ mod tests {
             notes: vec![Note {
                 id: 2,
                 group_id: Some(1),
+                todo: 0,
                 name: "Note A".into(),
                 content: "Body".into(),
                 sort_order: 0,

@@ -51,7 +51,7 @@ defineEmits<{
         <span class="section-badge">{{ ungroupedNotes.length }}</span>
       </div>
       <DragDropProvider @dragEnd="$emit('reorderUngrouped', $event)">
-        <div class="dnd-list">
+        <TransitionGroup name="list-anim" tag="div" class="dnd-list">
           <NoteItem
             v-for="(note, noteIndex) in ungroupedNotes"
             :key="note.id"
@@ -61,7 +61,7 @@ defineEmits<{
             @edit="$emit('editNote', $event)"
             @delete="$emit('deleteNote', $event)"
           />
-        </div>
+        </TransitionGroup>
       </DragDropProvider>
     </template>
 
@@ -71,7 +71,7 @@ defineEmits<{
         <span class="section-badge">{{ groups.length }}</span>
       </div>
       <DragDropProvider @dragEnd="$emit('reorderGroups', $event)">
-        <div class="dnd-list">
+        <TransitionGroup name="list-anim" tag="div" class="dnd-list">
           <GroupItem
             v-for="(group, groupIndex) in groups"
             :key="group.id"
@@ -85,7 +85,7 @@ defineEmits<{
             @delete-note="$emit('deleteNote', $event)"
             @reorder-notes="(groupId, event) => $emit('reorderGroupNotes', groupId, event)"
           />
-        </div>
+        </TransitionGroup>
       </DragDropProvider>
     </template>
   </div>
@@ -173,5 +173,31 @@ defineEmits<{
 .dnd-list {
   display: flex;
   flex-direction: column;
+}
+
+/* List Transitions */
+.list-anim-enter-active,
+.list-anim-leave-active {
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow: hidden;
+}
+
+.list-anim-enter-from,
+.list-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  border: none;
+}
+
+.list-anim-enter-to,
+.list-anim-leave-from {
+  opacity: 1;
+  transform: scale(1);
+  max-height: 120px;
 }
 </style>

@@ -48,8 +48,16 @@ const { isDragging } = useSortable({
       </svg>
     </div>
     <div class="note-body" @click="$emit('copy', note)" :title="`点击复制: ${note.content}`">
-      <span class="note-title">{{ note.name }}</span>
-      <span class="note-preview">{{ truncate(note.content, 30) }}</span>
+      <div v-if="note.todo > 0" class="status-wrap" @click.stop>
+        <div v-if="note.todo === 1" class="status-indicator status-todo" title="未完成"></div>
+        <div v-else-if="note.todo === 2" class="status-indicator status-done" title="已完成">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      </div>
+      <span class="note-title" :class="{ 'is-done': note.todo === 2 }">{{ note.name }}</span>
+      <span class="note-preview" :class="{ 'is-done': note.todo === 2 }">{{ truncate(note.content, 30) }}</span>
     </div>
     <div class="note-actions">
       <button class="act-btn" @click.stop="$emit('edit', note)" title="编辑" aria-label="编辑">
@@ -135,6 +143,32 @@ const { isDragging } = useSortable({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.is-done {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.status-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-todo {
+  background: var(--color-accent-subtle);
+  border: 1.5px solid var(--color-accent);
+}
+
+.status-done {
+  background: var(--color-success);
+  color: white;
 }
 
 .note-preview {

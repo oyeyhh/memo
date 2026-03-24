@@ -119,7 +119,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn create_note(&self, name: &str, content: &str, group_id: Option<i64>) -> Result<Note, rusqlite::Error> {
+    pub fn create_note(&self, name: &str, content: &str, group_id: Option<i64>, todo: i32) -> Result<Note, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         
         // Get max sort_order
@@ -130,42 +130,44 @@ impl Database {
         )?;
 
         conn.execute(
-            "INSERT INTO notes (name, content, group_id, sort_order) VALUES (?1, ?2, ?3, ?4)",
-            params![name, content, group_id, max_order + 1],
+            "INSERT INTO notes (name, content, group_id, todo, sort_order) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![name, content, group_id, todo, max_order + 1],
         )?;
         let id = conn.last_insert_rowid();
         conn.query_row(
-            "SELECT id, group_id, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1",
+            "SELECT id, group_id, todo, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1",
             params![id],
             |row| Ok(Note {
                 id: row.get(0)?,
                 group_id: row.get(1)?,
-                name: row.get(2)?,
-                content: row.get(3)?,
-                sort_order: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                todo: row.get(2)?,
+                name: row.get(3)?,
+                content: row.get(4)?,
+                sort_order: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             }),
         )
     }
 
-    pub fn update_note(&self, id: i64, name: &str, content: &str, group_id: Option<i64>) -> Result<Note, rusqlite::Error> {
+    pub fn update_note(&self, id: i64, name: &str, content: &str, group_id: Option<i64>, todo: i32) -> Result<Note, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "UPDATE notes SET name = ?1, content = ?2, group_id = ?3, updated_at = datetime('now', 'localtime') WHERE id = ?4",
-            params![name, content, group_id, id],
+            "UPDATE notes SET name = ?1, content = ?2, group_id = ?3, todo = ?4, updated_at = datetime('now', 'localtime') WHERE id = ?5",
+            params![name, content, group_id, todo, id],
         )?;
         conn.query_row(
-            "SELECT id, group_id, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1",
+            "SELECT id, group_id, todo, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1",
             params![id],
             |row| Ok(Note {
                 id: row.get(0)?,
                 group_id: row.get(1)?,
-                name: row.get(2)?,
-                content: row.get(3)?,
-                sort_order: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                todo: row.get(2)?,
+                name: row.get(3)?,
+                content: row.get(4)?,
+                sort_order: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             }),
         )
     }
@@ -196,29 +198,52 @@ impl Database {
         conn.query_row("SELECT datetime('now', 'localtime')", [], |row| row.get(0))
     }
 
-    pub fn get_all_notes(&self) -> Result<Vec<Note>, rusqlite::Error> {
+    pub fn get_all_notes(&self, todo_filter: Option<i32>) -> Result<Vec<Note>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, group_id, name, content, sort_order, created_at, updated_at FROM notes ORDER BY sort_order ASC"
-        )?;
-        let notes = stmt.query_map([], |row| {
-            Ok(Note {
-                id: row.get(0)?,
-                group_id: row.get(1)?,
-                name: row.get(2)?,
-                content: row.get(3)?,
-                sort_order: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            })
-        })?.collect::<Result<Vec<_>, _>>()?;
+        
+        let query = if todo_filter.is_some() {
+            "SELECT id, group_id, todo, name, content, sort_order, created_at, updated_at FROM notes WHERE todo = ?1 ORDER BY sort_order ASC"
+        } else {
+            "SELECT id, group_id, todo, name, content, sort_order, created_at, updated_at FROM notes ORDER BY sort_order ASC"
+        };
+        
+        let mut stmt = conn.prepare(query)?;
+        
+        let notes = if let Some(todo_val) = todo_filter {
+            stmt.query_map(params![todo_val], |row| {
+                Ok(Note {
+                    id: row.get(0)?,
+                    group_id: row.get(1)?,
+                    todo: row.get(2)?,
+                    name: row.get(3)?,
+                    content: row.get(4)?,
+                    sort_order: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?.collect::<Result<Vec<_>, _>>()?
+        } else {
+            stmt.query_map([], |row| {
+                Ok(Note {
+                    id: row.get(0)?,
+                    group_id: row.get(1)?,
+                    todo: row.get(2)?,
+                    name: row.get(3)?,
+                    content: row.get(4)?,
+                    sort_order: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?.collect::<Result<Vec<_>, _>>()?
+        };
+        
         Ok(notes)
     }
 
     pub fn get_note(&self, id: i64) -> Result<Option<Note>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, group_id, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1"
+            "SELECT id, group_id, todo, name, content, sort_order, created_at, updated_at FROM notes WHERE id = ?1"
         )?;
         let mut rows = stmt.query(params![id])?;
 
@@ -226,11 +251,12 @@ impl Database {
             return Ok(Some(Note {
                 id: row.get(0)?,
                 group_id: row.get(1)?,
-                name: row.get(2)?,
-                content: row.get(3)?,
-                sort_order: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                todo: row.get(2)?,
+                name: row.get(3)?,
+                content: row.get(4)?,
+                sort_order: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             }));
         }
 
@@ -260,8 +286,8 @@ impl Database {
         for note in notes {
             let new_group_id = note.group_id.and_then(|old_id| group_id_map.get(&old_id).copied());
             tx.execute(
-                "INSERT INTO notes (name, content, group_id, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![note.name, note.content, new_group_id, note.sort_order, note.created_at, note.updated_at],
+                "INSERT INTO notes (name, content, group_id, todo, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![note.name, note.content, new_group_id, note.todo, note.sort_order, note.created_at, note.updated_at],
             )?;
         }
 
@@ -311,6 +337,7 @@ mod tests {
             vec![Note {
                 id: 1,
                 group_id: Some(100),
+                todo: 0,
                 name: "note".into(),
                 content: "content".into(),
                 sort_order: 0,
@@ -335,13 +362,13 @@ mod tests {
         let path = temp_db_path("reorder");
         let db = Database::new(path.to_str().unwrap()).unwrap();
 
-        let first = db.create_note("one", "1", None).unwrap();
-        let second = db.create_note("two", "2", None).unwrap();
-        let third = db.create_note("three", "3", None).unwrap();
+        let first = db.create_note("one", "1", None, 0).unwrap();
+        let second = db.create_note("two", "2", None, 0).unwrap();
+        let third = db.create_note("three", "3", None, 0).unwrap();
 
         db.update_notes_order(vec![third.id, first.id, second.id]).unwrap();
 
-        let notes = db.get_all_notes().unwrap();
+        let notes = db.get_all_notes(None).unwrap();
         assert_eq!(notes.iter().map(|note| note.name.as_str()).collect::<Vec<_>>(), vec!["three", "one", "two"]);
 
         let _ = fs::remove_file(path);

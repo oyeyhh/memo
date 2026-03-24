@@ -34,13 +34,13 @@ pub fn get_group(db: State<'_, Database>, id: i64) -> Result<Option<Group>, Stri
 }
 
 #[tauri::command]
-pub fn create_note(db: State<'_, Database>, name: String, content: String, group_id: Option<i64>) -> Result<Note, String> {
-    db.create_note(&name, &content, group_id).map_err(|e| e.to_string())
+pub fn create_note(db: State<'_, Database>, name: String, content: String, group_id: Option<i64>, todo: i32) -> Result<Note, String> {
+    db.create_note(&name, &content, group_id, todo).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn update_note(db: State<'_, Database>, id: i64, name: String, content: String, group_id: Option<i64>) -> Result<Note, String> {
-    db.update_note(id, &name, &content, group_id).map_err(|e| e.to_string())
+pub fn update_note(db: State<'_, Database>, id: i64, name: String, content: String, group_id: Option<i64>, todo: i32) -> Result<Note, String> {
+    db.update_note(id, &name, &content, group_id, todo).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -64,8 +64,8 @@ pub fn delete_note(db: State<'_, Database>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_all_notes(db: State<'_, Database>) -> Result<Vec<Note>, String> {
-    db.get_all_notes().map_err(|e| e.to_string())
+pub fn get_all_notes(db: State<'_, Database>, todo: Option<i32>) -> Result<Vec<Note>, String> {
+    db.get_all_notes(todo).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

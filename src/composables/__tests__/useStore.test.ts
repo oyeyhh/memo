@@ -6,8 +6,8 @@ const groupsFixture: Group[] = [
 ];
 
 const notesFixture: Note[] = [
-  { id: 1, group_id: null, name: "Note A", content: "A", sort_order: 0, created_at: "", updated_at: "" },
-  { id: 2, group_id: 1, name: "Note B", content: "B", sort_order: 1, created_at: "", updated_at: "" },
+  { id: 1, group_id: null, todo: 0, name: "Note A", content: "A", sort_order: 0, created_at: "", updated_at: "" },
+  { id: 2, group_id: 1, todo: 0, name: "Note B", content: "B", sort_order: 1, created_at: "", updated_at: "" },
 ];
 
 const api = {
@@ -52,7 +52,7 @@ describe("useStore", () => {
   });
 
   it("adds a note without full reload", async () => {
-    const created: Note = { id: 3, group_id: null, name: "Note C", content: "C", sort_order: 2, created_at: "", updated_at: "" };
+    const created: Note = { id: 3, group_id: null, todo: 0, name: "Note C", content: "C", sort_order: 2, created_at: "", updated_at: "" };
     api.createNote.mockResolvedValue(created);
     const store = await freshStore();
     store.notes.value = structuredClone(notesFixture);

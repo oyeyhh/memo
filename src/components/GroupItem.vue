@@ -66,11 +66,10 @@ function toggle() {
         </svg>
       </div>
       <div class="group-arrow" :class="{ open: expanded }">
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
-      <span class="group-dot" />
       <span class="group-name">{{ group.name }}</span>
       <span class="group-count">{{ groupNotesModel.length }}</span>
       <div class="group-actions">
@@ -93,15 +92,17 @@ function toggle() {
       <div v-if="expanded" class="group-children">
         <template v-if="groupNotesModel.length > 0">
           <DragDropProvider @dragEnd="onNoteDragEnd">
-            <NoteItem
-              v-for="(note, noteIndex) in groupNotesModel"
-              :key="note.id"
-              :note="note"
-              :index="noteIndex"
-              @copy="$emit('copyNote', $event)"
-              @edit="$emit('editNote', $event)"
-              @delete="$emit('deleteNote', $event)"
-            />
+            <TransitionGroup name="list-anim" tag="div" class="dnd-list">
+              <NoteItem
+                v-for="(note, noteIndex) in groupNotesModel"
+                :key="note.id"
+                :note="note"
+                :index="noteIndex"
+                @copy="$emit('copyNote', $event)"
+                @edit="$emit('editNote', $event)"
+                @delete="$emit('deleteNote', $event)"
+              />
+            </TransitionGroup>
           </DragDropProvider>
         </template>
         <div v-else class="group-empty">暂无笔记</div>
@@ -114,19 +115,25 @@ function toggle() {
 .group-item {
 }
 
+.group-item {
+  margin-bottom: 2px;
+}
+
 .group-header {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px 4px 34px;
+  gap: 8px;
+  padding: 6px 12px 6px 30px;
   cursor: pointer;
   user-select: none;
+  border-radius: var(--radius-sm);
+  margin: 0 4px;
   transition: background var(--transition-fast);
 }
 
 .group-header:hover {
-  background: rgba(0, 0, 0, 0.015);
+  background: var(--color-surface);
 }
 
 .group-drag-handle {
@@ -134,14 +141,14 @@ function toggle() {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 34px;
+  width: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
+  color: var(--color-text-tertiary);
   cursor: grab;
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast);
 }
 
 .group-drag-handle:active {
@@ -149,7 +156,7 @@ function toggle() {
 }
 
 .group-header:hover .group-drag-handle {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .group-drag-handle:hover {
@@ -158,32 +165,28 @@ function toggle() {
 }
 
 .group-arrow {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
-  transition: transform 0.2s ease;
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-normal), color var(--transition-fast);
   flex-shrink: 0;
+}
+
+.group-header:hover .group-arrow {
+  color: var(--color-text-secondary);
 }
 
 .group-arrow.open {
   transform: rotate(90deg);
 }
 
-.group-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: #6366f1;
-}
-
 .group-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,18 +196,19 @@ function toggle() {
 .group-count {
   font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
-  font-weight: 500;
-  background: rgba(0, 0, 0, 0.03);
-  padding: 1px 6px;
-  border-radius: 8px;
+  font-weight: 600;
+  background: var(--color-surface);
+  padding: 2px 6px;
+  border-radius: 10px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
 }
 
 .group-actions {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   opacity: 0;
   transition: opacity var(--transition-fast);
   flex-shrink: 0;
@@ -242,12 +246,27 @@ function toggle() {
 /* Children notes */
 .group-children {
   overflow: hidden;
+  position: relative;
+  margin-left: 20px;
+  padding-left: 10px;
+}
+
+.group-children::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: var(--color-border);
+  border-radius: 1px;
 }
 
 .group-empty {
-  padding: 6px 14px 4px 34px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  padding: 12px 14px 12px 24px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 .is-dragging {
@@ -268,5 +287,36 @@ function toggle() {
 .slide-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+.dnd-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* List Transitions */
+.list-anim-enter-active,
+.list-anim-leave-active {
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow: hidden;
+}
+
+.list-anim-enter-from,
+.list-anim-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  border: none;
+}
+
+.list-anim-enter-to,
+.list-anim-leave-from {
+  opacity: 1;
+  transform: scale(1);
+  max-height: 120px;
 }
 </style>

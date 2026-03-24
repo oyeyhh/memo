@@ -13,6 +13,8 @@ pub struct Group {
 pub struct Note {
     pub id: i64,
     pub group_id: Option<i64>,
+    #[serde(default)]
+    pub todo: i32,
     pub name: String,
     pub content: String,
     pub sort_order: i64,

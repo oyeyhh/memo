@@ -2,10 +2,12 @@
 defineProps<{
   totalCount: number;
   groupCount: number;
+  todoCount: number;
   autoStartEnabled: boolean;
   importing: boolean;
   exporting: boolean;
   busy: boolean;
+  filterMode: "all" | "todo" | "hide_done";
 }>();
 
 defineEmits<{
@@ -13,18 +15,14 @@ defineEmits<{
   importData: [];
   exportData: [];
   quit: [];
+  cycleFilter: [];
 }>();
 </script>
 
 <template>
   <div class="status-bar">
     <div class="status-info">
-      <template v-if="totalCount > 0">
-        <span>{{ totalCount }} 条笔记</span>
-        <span v-if="groupCount > 0" class="status-sep">&middot;</span>
-        <span v-if="groupCount > 0">{{ groupCount }} 个分组</span>
-      </template>
-      <span v-else-if="busy">同步中...</span>
+      <span v-if="busy">同步中...</span>
     </div>
     <div class="status-actions">
       <button
@@ -39,6 +37,25 @@ defineEmits<{
           <circle v-if="autoStartEnabled" cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
         </svg>
         开机启动
+      </button>
+      <button
+        class="action-btn"
+        :class="{ 'action-btn--active': filterMode !== 'all' }"
+        @click="$emit('cycleFilter')"
+        title="切换过滤视图"
+      >
+        <svg v-if="filterMode === 'all'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        </svg>
+        <svg v-else-if="filterMode === 'todo'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+        {{ filterMode === 'all' ? '全部视角' : filterMode === 'todo' ? '仅看未完成' : '隐藏已完成' }}
       </button>
       <button class="action-btn" @click="$emit('importData')" :disabled="importing || busy" title="导入数据" aria-label="导入">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

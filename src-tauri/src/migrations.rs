@@ -15,6 +15,7 @@ pub fn initialize(conn: &Connection) -> Result<(), rusqlite::Error> {
             group_id INTEGER NULL,
             name TEXT NOT NULL CHECK (length(trim(name)) > 0),
             content TEXT NOT NULL CHECK (length(trim(content)) > 0),
+            todo INTEGER DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT (datetime('now', 'localtime')),
             updated_at DATETIME DEFAULT (datetime('now', 'localtime')),
@@ -24,6 +25,7 @@ pub fn initialize(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     let has_group_sort_order = has_column(conn, "groups", "sort_order")?;
     let has_note_sort_order = has_column(conn, "notes", "sort_order")?;
+    let has_note_todo = has_column(conn, "notes", "todo")?;
 
     if !has_group_sort_order {
         conn.execute_batch("ALTER TABLE groups ADD COLUMN sort_order INTEGER DEFAULT 0;")?;
@@ -41,6 +43,10 @@ pub fn initialize(conn: &Connection) -> Result<(), rusqlite::Error> {
                 SELECT COUNT(*) FROM notes n2 WHERE n2.created_at > notes.created_at
             );"
         )?;
+    }
+
+    if !has_note_todo {
+        conn.execute_batch("ALTER TABLE notes ADD COLUMN todo INTEGER DEFAULT 0;")?;
     }
 
     conn.execute_batch(
@@ -111,6 +117,7 @@ mod tests {
 
         assert!(group_columns.contains(&"sort_order".to_string()));
         assert!(note_columns.contains(&"sort_order".to_string()));
+        assert!(note_columns.contains(&"todo".to_string()));
 
         let group_orders: Vec<(String, i64)> = conn
             .prepare("SELECT name, sort_order FROM groups ORDER BY sort_order ASC")

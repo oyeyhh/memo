@@ -11,13 +11,28 @@ const isMutating = ref(false);
 const error = ref<string | null>(null);
 
 export function useStore() {
+  const filterMode = ref<"all" | "todo" | "hide_done">("all");
+
   const ungroupedNotes = computed(() =>
-    notes.value.filter((n) => n.group_id === null)
+    notes.value.filter((n) => {
+      if (n.group_id !== null) return false;
+      if (filterMode.value === "todo") return n.todo === 1;
+      if (filterMode.value === "hide_done") return n.todo !== 2;
+      return true;
+    })
+  );
+  const todoCount = computed(() =>
+    notes.value.filter((n) => n.todo === 1).length
   );
   const busy = computed(() => isLoading.value || isMutating.value);
 
   function getNotesForGroup(groupId: number) {
-    return notes.value.filter((n) => n.group_id === groupId);
+    return notes.value.filter((n) => {
+      if (n.group_id !== groupId) return false;
+      if (filterMode.value === "todo") return n.todo === 1;
+      if (filterMode.value === "hide_done") return n.todo !== 2;
+      return true;
+    });
   }
 
   function replaceGroup(nextGroup: Group) {
@@ -62,16 +77,16 @@ export function useStore() {
     }, "loading");
   }
 
-  async function addNote(name: string, content: string, groupId: number | null) {
+  async function addNote(name: string, content: string, groupId: number | null, todo: number = 0) {
     await runWithState(async () => {
-      const note = await api.createNote(name, content, groupId);
+      const note = await api.createNote(name, content, groupId, todo);
       notes.value = [...notes.value, note];
     }, "mutating");
   }
 
-  async function editNote(id: number, name: string, content: string, groupId: number | null) {
+  async function editNote(id: number, name: string, content: string, groupId: number | null, todo: number) {
     await runWithState(async () => {
-      const note = await api.updateNote(id, name, content, groupId);
+      const note = await api.updateNote(id, name, content, groupId, todo);
       replaceNote(note);
     }, "mutating");
   }
@@ -125,6 +140,7 @@ export function useStore() {
   }
 
   async function reorderUngroupedNotes(event: any) {
+    if (filterMode.value !== "all") return; // Disable reorder when filtered
     const reordered = move(ungroupedNotes.value, event);
     const otherNotes = notes.value.filter((note) => note.group_id !== null);
     notes.value = [...reordered, ...otherNotes];
@@ -132,6 +148,7 @@ export function useStore() {
   }
 
   async function reorderGroupNotes(groupId: number, event: any) {
+    if (filterMode.value !== "all") return; // Disable reorder when filtered
     const groupedNotes = getNotesForGroup(groupId);
     const reordered = move(groupedNotes, event);
     const otherNotes = notes.value.filter((note) => note.group_id !== groupId);
@@ -140,6 +157,7 @@ export function useStore() {
   }
 
   async function reorderGroups(event: any) {
+    if (filterMode.value !== "all") return; // Disable reorder when filtered
     groups.value = move(groups.value, event);
     await updateGroupsOrder(groups.value.map((group) => group.id));
   }
@@ -151,7 +169,9 @@ export function useStore() {
     isMutating,
     busy,
     error,
+    filterMode,
     ungroupedNotes,
+    todoCount,
     getNotesForGroup,
     loadData,
     addNote,

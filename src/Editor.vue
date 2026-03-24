@@ -19,6 +19,7 @@ const isCreate = mode === "create";
 const name = ref("");
 const content = ref("");
 const groupId = ref<number | null>(null);
+const todo = ref(0);
 const groups = ref<Group[]>([]);
 const confirmDelete = ref(false);
 const showNewGroupInput = ref(false);
@@ -33,6 +34,7 @@ onMounted(async () => {
         name.value = note.name;
         content.value = note.content;
         groupId.value = note.group_id;
+        todo.value = note.todo;
       }
     }
   } else {
@@ -53,9 +55,9 @@ async function save() {
       const trimmedContent = content.value.trim();
       if (!trimmedContent) return;
       if (isCreate) {
-        await api.createNote(trimmedName, trimmedContent, groupId.value);
+        await api.createNote(trimmedName, trimmedContent, groupId.value, todo.value);
       } else {
-        await api.updateNote(editId, trimmedName, trimmedContent, groupId.value);
+        await api.updateNote(editId, trimmedName, trimmedContent, groupId.value, todo.value);
       }
     } else {
       await api.updateGroup(editId, trimmedName);
@@ -121,9 +123,20 @@ function cancelNewGroup() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-    e.preventDefault();
-    save();
+  if (e.metaKey || e.ctrlKey) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      save();
+    } else if (e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      todo.value = 1;
+    } else if (e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      todo.value = 2;
+    } else if (e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      todo.value = 0;
+    }
   }
 }
 
@@ -165,6 +178,21 @@ const titleText = isCreate
           />
         </div>
       </template>
+
+      <div class="field">
+        <label class="field-label">状态</label>
+        <div class="segmented-control">
+          <button class="segment-btn" :class="{ active: todo === 0 }" @click="todo = 0" title="普通笔记 (Cmd+N)">
+            笔记
+          </button>
+          <button class="segment-btn" :class="{ active: todo === 1 }" @click="todo = 1" title="设为待办 (Cmd+T)">
+            待办
+          </button>
+          <button class="segment-btn" :class="{ active: todo === 2 }" @click="todo = 2" title="设为已完成 (Cmd+D)">
+            已完成
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="editor-footer">
@@ -418,6 +446,38 @@ body { margin: 0; }
   -webkit-appearance: none;
   appearance: none;
   flex: 1;
+}
+
+.segmented-control {
+  display: flex;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.segment-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 0;
+  border-radius: 4px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.segment-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.segment-btn.active {
+  background: var(--color-bg-solid);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .editor-footer {

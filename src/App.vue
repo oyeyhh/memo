@@ -51,9 +51,17 @@ const notesByGroup = computed(() =>
   Object.fromEntries(groupsModel.value.map((group) => [group.id, store.getNotesForGroup(group.id)]))
 );
 
-watch(totalCount, (newCount) => {
-  api.updateTrayTitle(newCount.toString()).catch(console.error);
-}, { immediate: true });
+watch(
+  () => [totalCount.value, store.todoCount.value] as const,
+  ([total, todo]) => {
+    let title = total.toString();
+    if (todo > 0) {
+      title += ` / ${todo} 未完成`;
+    }
+    api.updateTrayTitle(title).catch(console.error);
+  },
+  { immediate: true }
+);
 
 onMounted(async () => {
   await store.loadData();
@@ -192,6 +200,12 @@ function doConfirm() {
 function handleQuit() {
   void api.quitApp();
 }
+
+function cycleFilterMode() {
+  const modes: ("all" | "todo" | "hide_done")[] = ["all", "todo", "hide_done"];
+  const currentIdx = modes.indexOf(store.filterMode.value);
+  store.filterMode.value = modes[(currentIdx + 1) % modes.length];
+}
 </script>
 
 <template>
@@ -222,13 +236,16 @@ function handleQuit() {
     <StatusBar
       :total-count="totalCount"
       :group-count="store.groups.value.length"
+      :todo-count="store.todoCount.value"
       :auto-start-enabled="autoStart.enabled.value"
       :importing="dataTransfer.importing.value"
       :exporting="dataTransfer.exporting.value"
       :busy="store.busy.value"
+      :filter-mode="store.filterMode.value"
       @toggle-auto-start="toggleAutoStart"
       @import-data="handleImport"
       @export-data="handleExport"
+      @cycle-filter="cycleFilterMode"
       @quit="handleQuit"
     />
 

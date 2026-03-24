@@ -11,6 +11,7 @@ export interface Group {
 export interface Note {
   id: number;
   group_id: number | null;
+  todo: number;
   name: string;
   content: string;
   sort_order: number;
@@ -26,17 +27,17 @@ export function useApi() {
     getGroup: (id: number) => invoke<Group | null>("get_group", { id }),
     getAllGroups: () => invoke<Group[]>("get_all_groups"),
 
-    createNote: (name: string, content: string, groupId: number | null) =>
-      invoke<Note>("create_note", { name, content, groupId }),
-    updateNote: (id: number, name: string, content: string, groupId: number | null) =>
-      invoke<Note>("update_note", { id, name, content, groupId }),
+    createNote: (name: string, content: string, groupId: number | null, todo: number = 0) =>
+      invoke<Note>("create_note", { name, content, groupId, todo }),
+    updateNote: (id: number, name: string, content: string, groupId: number | null, todo: number) =>
+      invoke<Note>("update_note", { id, name, content, groupId, todo }),
     getNote: (id: number) => invoke<Note | null>("get_note", { id }),
     updateNotesOrder: (noteIds: number[]) =>
       invoke<void>("update_notes_order", { noteIds }),
     updateGroupsOrder: (groupIds: number[]) =>
       invoke<void>("update_groups_order", { groupIds }),
     deleteNote: (id: number) => invoke<void>("delete_note", { id }),
-    getAllNotes: () => invoke<Note[]>("get_all_notes"),
+    getAllNotes: (todo?: number) => invoke<Note[]>("get_all_notes", { todo: todo ?? null }),
 
     copyToClipboard: (content: string) => invoke<void>("copy_to_clipboard", { content }),
 
